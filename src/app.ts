@@ -87,7 +87,7 @@ export default class HelloWorld {
 					}
 				}
 			}
-		});
+		});,
 
 		// Create some animations on the cube.
 		const flipAnimData = this.assets.createAnimationData(
