@@ -32,7 +32,7 @@ export default class HelloWorld {
 					app: { position: { x: 0, y: 0.5, z: 0 } }
 				},
 				text: {
-					contents: "Ello we got this!!!",
+					contents: "Coding sucks !!!",
 					anchor: MRE.TextAnchorLocation.MiddleCenter,
 					color: { r: 30 / 255, g: 206 / 255, b: 213 / 255 },
 					height: 0.3
@@ -87,20 +87,7 @@ export default class HelloWorld {
 		});
 
 		// Create some animations on the cube.
-		const flipAnimData = this.assets.createAnimationData(
-			// the animation name
-			"DoAFlip",
-			{ tracks: [{
-				// applies to the rotation of an unknown actor we'll refer to as "target"
-				target: MRE.ActorPath("target").transform.local.rotation,
-				// do a spin around the X axis over the course of one second
-				keyframes: this.generateSpinKeyframes(1.0, MRE.Vector3.Right()),
-				// and do it smoothly
-				easing: MRE.AnimationEaseCurves.Linear
-			}]}
-		);
 		// apply the animation to our cube
-		const flipAnim = await flipAnimData.bind({ target: this.cube });
 
 		// Set up cursor interaction. We add the input behavior ButtonBehavior to the cube.
 		// Button behaviors have two pairs of events: hover start/stop, and click start/stop.
@@ -134,22 +121,5 @@ export default class HelloWorld {
 	 * @param duration The length of time in seconds it takes to complete a full revolution.
 	 * @param axis The axis of rotation in local space.
 	 */
-	private generateSpinKeyframes(duration: number, axis: MRE.Vector3): Array<MRE.Keyframe<MRE.Quaternion>> {
-		return [{
-			time: 0 * duration,
-			value: MRE.Quaternion.RotationAxis(axis, 0)
-		}, {
-			time: 0.25 * duration,
-			value: MRE.Quaternion.RotationAxis(axis, Math.PI / 2)
-		}, {
-			time: 0.5 * duration,
-			value: MRE.Quaternion.RotationAxis(axis, Math.PI)
-		}, {
-			time: 0.75 * duration,
-			value: MRE.Quaternion.RotationAxis(axis, 3 * Math.PI / 2)
-		}, {
-			time: 1 * duration,
-			value: MRE.Quaternion.RotationAxis(axis, 2 * Math.PI)
-		}];
 	}
 }
