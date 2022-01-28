@@ -86,8 +86,8 @@ export default class HelloWorld {
 					userId: user.id
 					}
 				}
-			}
-		});,
+			},
+		});
 
 		// Create some animations on the cube.
 		const flipAnimData = this.assets.createAnimationData(
