@@ -81,13 +81,10 @@ export default class HelloWorld {
 					local: {
 						position: { x: 0, y: -1, z: 0 },
 						scale: { x: 0.4, y: 0.4, z: 0.4 },
-						attachment: {
-					attachPoint: "left-hand",
-					userId: user.id
 					}
 				}
 			}
-		});,
+		});
 
 		// Create some animations on the cube.
 		const flipAnimData = this.assets.createAnimationData(
