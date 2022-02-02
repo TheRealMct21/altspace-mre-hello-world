@@ -3,116 +3,77 @@
  * Licensed under the MIT License.
  */
 
-import * as MRE from '@microsoft/mixed-reality-extension-sdk';
+import {
+    Actor,
+    MediaInstance,
+    ParameterSet,
+    SetAudioStateOptions,
+    User} from "@microsoft/mixed-reality-extension-sdk";
 
-/**
- * The main class of this app. All the logic goes here.
- */
-export default class HelloWorld {
-	private text: MRE.Actor = null;
-	private cube: MRE.Actor = null;
-	private assets: MRE.AssetContainer;
+import Applet from "../Applet";
 
-	constructor(private context: MRE.Context) {
-		this.context.onStarted(() => this.started());
-	}
+import { ContextLike } from "../frameworks/context/types";
 
-	/**
-	 * Once the context is "started", initialize the app.
-	 */
-	private async started() {
-		// set up somewhere to store loaded assets (meshes, textures, animations, gltfs, etc.)
-		this.assets = new MRE.AssetContainer(this.context);
+import DoorGuard from "../DoorGuard";
+import { initSound, restartSound } from "../helpers";
 
-		// Create a new actor with no mesh, but some text.
-		this.text = MRE.Actor.Create(this.context, {
-			actor: {
-				name: 'Text',
-				transform: {
-					app: { position: { x: 0, y: 0.5, z: 0 } }
-				},
-				text: {
-					contents: "Coding sucks !!!",
-					anchor: MRE.TextAnchorLocation.MiddleCenter,
-					color: { r: 30 / 255, g: 206 / 255, b: 213 / 255 },
-					height: 0.3
-				}
-			}
-		});
+export default class Doorbell extends Applet {
 
-		// Here we create an animation for our text actor. First we create animation data, which can be used on any
-		// actor. We'll reference that actor with the placeholder "text".
-		const spinAnimData = this.assets.createAnimationData(
-			// The name is a unique identifier for this data. You can use it to find the data in the asset container,
-			// but it's merely descriptive in this sample.
-			"Spin",
-			{
-				// Animation data is defined by a list of animation "tracks": a particular property you want to change,
-				// and the values you want to change it to.
-				tracks: [{
-					// This animation targets the rotation of an actor named "text"
-					target: MRE.ActorPath("text").transform.local.rotation,
-					// And the rotation will be set to spin over 20 seconds
-					keyframes: this.generateSpinKeyframes(20, MRE.Vector3.Up()),
-					// And it will move smoothly from one frame to the next
-					easing: MRE.AnimationEaseCurves.Linear
-				}]
-			});
-		// Once the animation data is created, we can create a real animation from it.
-		spinAnimData.bind(
-			// We assign our text actor to the actor placeholder "text"
-			{ text: this.text },
-			// And set it to play immediately, and bounce back and forth from start to end
-			{ isPlaying: true, wrapMode: MRE.AnimationWrapMode.PingPong });
+    private soundURL: string = "https://altvr-distro.azureedge.net/uploads/" +
+        "audio_clip/audio/1425522904870683552/ogg_275072__kwahmah-02__doorbell-a.ogg";
 
-		// Load a glTF model before we use it
-		const cubeData = await this.assets.loadGltf('altspace-cube.glb', "box");
+    private soundFX: MediaInstance = null;
+    private bellRoot: Actor = null;
 
-		// spawn a copy of the glTF model
-		this.cube = MRE.Actor.CreateFromPrefab(this.context, {
-			// using the data we loaded earlier
-			firstPrefabFrom: cubeData,
-			// Also apply the following generic actor properties.
-			actor: {
-				name: 'Altspace Cube',
-				// Parent the glTF model to the text actor, so the transform is relative to the text
-				parentId: this.text.id,
-				transform: {
-					local: {
-						position: { x: 0, y: -1, z: 0 },
-						scale: { x: 0.4, y: 0.4, z: 0.4 },
-					}
-				}
-			}
-		});
+    private minPause = 1;
+    private maxBurst = 3;
+    private burstTime = 5;
+    private distance = 10.0;
 
-		// Create some animations on the cube.
-		// apply the animation to our cube
+    private burstStart = 0;
+    private burstCount = 0;
 
-		// Set up cursor interaction. We add the input behavior ButtonBehavior to the cube.
-		// Button behaviors have two pairs of events: hover start/stop, and click start/stop.
-		const buttonBehavior = this.cube.setBehavior(MRE.ButtonBehavior);
+    public init(context: ContextLike, params: ParameterSet, baseUrl: string) {
+        super.init(context, params, baseUrl);
 
-		// Trigger the grow/shrink animations on hover.
-		buttonBehavior.onHover('enter', () => {
-			// use the convenience function "AnimateTo" instead of creating the animation data in advance
-			MRE.Animation.AnimateTo(this.context, this.cube, {
-				destination: { transform: { local: { scale: { x: 0.5, y: 0.5, z: 0.5 } } } },
-				duration: 0.3,
-				easing: MRE.AnimationEaseCurves.EaseOutSine
-			});
-		});
-		buttonBehavior.onHover('exit', () => {
-			MRE.Animation.AnimateTo(this.context, this.cube, {
-				destination: { transform: { local: { scale: { x: 0.4, y: 0.4, z: 0.4 } } } },
-				duration: 0.3,
-				easing: MRE.AnimationEaseCurves.EaseOutSine
-			});
-		});
-	/**
-	 * Generate keyframe data for a simple spin animation.
-	 * @param duration The length of time in seconds it takes to complete a full revolution.
-	 * @param axis The axis of rotation in local space.
-	 */
-	}
+        if (params.soundURL) this.soundURL = params.soundURL as string;
+        if (params.minPause) this.minPause = +params.minPause;
+        if (params.maxBurst) this.maxBurst = +params.maxBurst;
+        if (params.burstTime) this.burstTime = +params.burstTime;
+        if (params.distance) this.distance = +params.distance;
+
+        this.context.onStarted(this.started);
+        this.context.onUserJoined(this.userjoined);
+    }
+
+    private started = async () => {
+        this.bellRoot = this.context.CreateEmpty();
+
+        this.soundFX = initSound(this.context.assets, this.bellRoot, this.soundURL, {
+            rolloffStartDistance: this.distance
+        });
+    }
+
+    private userjoined = async (user: User) => {
+        console.debug(`Connection request by ${user.name} from ${user.properties.remoteAddress}`);
+        DoorGuard.greeted(user.properties.remoteAddress);
+        this.ringBell(user);
+    }
+
+    private ringBell = async (user: User) => {
+        const currentTime = new Date().getTime() / 1000;
+
+        if (this.burstStart + this.minPause >= currentTime) return;
+
+        if (this.burstStart + this.burstTime < currentTime) {
+            this.burstStart = currentTime;
+            this.burstCount = 0;
+        } else {
+            if (this.burstCount++ > this.maxBurst) return;
+        }
+
+        restartSound(this.soundFX, {
+            rolloffStartDistance: this.distance
+        });
+    }
 }
